@@ -2,23 +2,61 @@
 <html>
 <head>
     <title>Exodus Live Tracking</title>
-    <!-- Windy API requires Leaflet as its base map engine -->
     <script src="https://unpkg.com/leaflet@1.4.0/dist/leaflet.js"></script>
     <script src="https://api.windy.com/assets/map-forecast/libBoot.js"></script>
     <style>
         body { margin: 0; padding: 0; }
         #windy { width: 100vw; height: 100vh; }
+        
+        /* Custom Dark Popup Styling to match screenshot */
+        .leaflet-popup-content-wrapper {
+            background-color: #1a1c23;
+            color: #9ba3af;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            padding: 2px;
+        }
+        .leaflet-popup-tip {
+            background-color: #1a1c23;
+        }
+        .custom-popup {
+            padding: 8px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .custom-popup h3 {
+            color: #58a6ff;
+            margin: 0 0 12px 0;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        .custom-popup .row {
+            margin-bottom: 4px;
+            display: flex;
+            align-items: flex-start;
+        }
+        .custom-popup .icon {
+            margin-right: 8px;
+            font-size: 16px;
+        }
+        .custom-popup strong {
+            color: #c9d1d9;
+            font-weight: 500;
+        }
+        .custom-popup .green-text {
+            color: #3fb950;
+        }
     </style>
 </head>
 <body>
     <div id="windy"></div>
     
     <script>
-        // 1. Initialize the map
         const options = {
-            key: '{{WINDY_KEY}}',
+            key: '{{WINDY_KEY}}', 
             verbose: false,
-            lat: 39.3, // Centered roughly on the Med / Volos area
+            lat: 39.3, 
             lon: 22.9,
             zoom: 7,
         };
@@ -26,28 +64,44 @@
         windyInit(options, windyAPI => {
             const { map } = windyAPI;
 
-            // 2. Fetch the automated data file
-            // Appending a timestamp tricks the browser into thinking it's a brand new file every time
+            // Fetch the updated JSON structure
             fetch('track.json?t=' + new Date().getTime())
                 .then(response => response.json())
-                .then(coordinates => {
-                    if (coordinates.length > 0) {
+                .then(data => {
+                    if (data.length > 0) {
                         
-                        // 3. Draw a clean, continuous line (no tags)
+                        // Extract just the coordinates for the polyline
+                        const coordinates = data.map(point => [point.lat, point.lon]);
+                        
                         const trackLine = L.polyline(coordinates, {
-                            color: '#ffffff', // White line
-                            weight: 3,        // Line thickness
+                            color: '#ffffff',
+                            weight: 3,
                             opacity: 0.9,
                             smoothFactor: 1
                         }).addTo(map);
 
-                        // Automatically frame the map so the whole track is visible
                         map.fitBounds(trackLine.getBounds());
                         
-                        // Optional: Drop a single standard pin on the very last known location
-                        const currentPosition = coordinates[coordinates.length - 1];
-                        L.marker(currentPosition).addTo(map)
-                            .bindPopup("Latest Position")
+                        // Get the latest data point object
+                        const latestPoint = data[data.length - 1];
+                        
+                        // Construct the HTML for the custom popup
+                        const popupHTML = `
+                            <div class="custom-popup">
+                                <h3>⛵ Exodus</h3>
+                                <div class="row"><span class="icon">📍</span> <span><strong>Coords:</strong> ${latestPoint.lat.toFixed(4)}°N, ${Math.abs(latestPoint.lon).toFixed(4)}°${latestPoint.lon < 0 ? 'W' : 'E'}</span></div>
+                                <div class="row"><span class="icon">⚡</span> <span><strong>Speed:</strong> ${latestPoint.speed}</span></div>
+                                <div class="row"><span class="icon">🧭</span> <span><strong>Course:</strong> ${latestPoint.course}</span></div>
+                                <div class="row"><span class="icon">⬆️</span> <span><strong>Elevation:</strong> ${latestPoint.elevation} from MSL</span></div>
+                                <div class="row"><span class="icon">📡</span> <span><strong>GPS:</strong> <span class="green-text">Valid Fix</span></span></div>
+                                <div class="row"><span class="icon">🕒</span> <span><strong>Updated:</strong> ${latestPoint.time}</span></div>
+                                <div class="row"><span class="icon">📝</span> <span><strong>Event:</strong> ${latestPoint.event}</span></div>
+                            </div>
+                        `;
+
+                        // Add marker with custom popup
+                        L.marker([latestPoint.lat, latestPoint.lon]).addTo(map)
+                            .bindPopup(popupHTML, { minWidth: 280 })
                             .openPopup();
                     }
                 })

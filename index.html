@@ -27,7 +27,8 @@
             const { map } = windyAPI;
 
             // 2. Fetch the automated data file
-            fetch('track.json')
+            // Appending a timestamp tricks the browser into thinking it's a brand new file every time
+            fetch('track.json?t=' + new Date().getTime())
                 .then(response => response.json())
                 .then(coordinates => {
                     if (coordinates.length > 0) {

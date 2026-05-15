@@ -3,7 +3,7 @@ import xml.etree.ElementTree as ET
 import json
 
 # Your Garmin feed. Adjust the start date (?d1=) to the beginning of your voyage.
-URL = "https://share.garmin.com/Feed/Share/Exodussail?d1=2026-05-01T00:00z"
+URL = "https://share.garmin.com/Feed/Share/Exodussail?d1=2026-04-01T00:00z"
 
 def fetch_and_parse():
     try:

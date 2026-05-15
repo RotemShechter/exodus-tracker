@@ -165,7 +165,7 @@
                             // 5. Draw the new Marker on the map
                             currentMarker = L.marker([latestPoint.lat, latestPoint.lon], {icon: customArrow})
                                 .addTo(map)
-                                .bindPopup(popupHTML, { minWidth: 280 });
+                                .bindPopup(popupHTML, { minWidth: 280 })
                                 .openPopup();
                         }
                     })

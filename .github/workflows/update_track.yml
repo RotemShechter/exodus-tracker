@@ -9,7 +9,7 @@ jobs:
   update-data:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Required to commit the new JSON file back to the repo
+      contents: write # Required to commit files back to the repo
 
     steps:
       - name: Checkout repository
@@ -23,10 +23,18 @@ jobs:
       - name: Run Fetch Script
         run: python fetch_track.py
 
+      - name: Inject API Key
+        run: |
+          # This swaps the placeholder in your HTML with the secret from GitHub's vault
+          sed -i "s/{{WINDY_KEY}}/${{ secrets.WINDY_API_KEY }}/g" index.html
+
       - name: Commit and Push changes
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git add track.json
-          # Only commit if the JSON file actually changed
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Automated track update" && git push)
+          
+          # We add both the newly generated JSON and the modified HTML
+          git add track.json index.html
+          
+          # Only commit if something actually changed
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Automated update and key injection" && git push)

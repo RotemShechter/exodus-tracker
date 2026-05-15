@@ -53,7 +53,8 @@ def fetch_and_parse():
                                     except:
                                         point_data["time"] = val_text
                                 elif name == "Velocity":
-                                    point_data["speed"] = val_text
+                                    # Splits at the opening parenthesis and keeps only the "4.3 kn" part
+                                    point_data["speed"] = val_text.split('(')[0].strip()
                                 elif name == "Course":
                                     point_data["course"] = val_text
                                 elif name == "Elevation":

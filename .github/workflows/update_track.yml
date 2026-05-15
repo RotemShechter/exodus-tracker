@@ -2,15 +2,18 @@ name: Update Track Data
 
 on:
   schedule:
-    - cron: '*/15 * * * *' # Runs every 15 minutes
-  workflow_dispatch: # Allows you to trigger it manually from the Actions tab
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+# Allow this job to commit files and deploy to GitHub Pages
+permissions:
+  contents: write
+  pages: write
+  id-token: write
 
 jobs:
   update-data:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write # Required to commit files back to the repo
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -23,18 +26,36 @@ jobs:
       - name: Run Fetch Script
         run: python fetch_track.py
 
-      - name: Inject API Key
-        run: |
-          # This swaps the placeholder in your HTML with the secret from GitHub's vault
-          sed -i "s/{{WINDY_KEY}}/${{ secrets.WINDY_API_KEY }}/g" index.html
-
-      - name: Commit and Push changes
+      - name: Commit track.json to source
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          
-          # We add both the newly generated JSON and the modified HTML
-          git add track.json index.html
-          
-          # Only commit if something actually changed
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Automated update and key injection" && git push)
+          git add track.json
+          # We ONLY commit the JSON file back to the repository to keep history.
+          # We DO NOT commit index.html.
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Automated track update" && git push)
+
+      - name: Prepare Deployment Artifact
+        run: |
+          # Create a temporary folder for the web server
+          mkdir _site
+          cp -r * _site/
+          # Inject the secret ONLY into the temporary deployment copy
+          sed -i "s/{{WINDY_KEY}}/${{ secrets.WINDY_API_KEY }}/g" _site/index.html
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '_site/'
+
+  deploy:
+    # This second job handles pushing the temporary folder to the live web server
+    needs: update-data
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

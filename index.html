@@ -2,6 +2,7 @@
 <html>
 <head>
     <title>Exodus Live Tracking</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <script src="https://unpkg.com/leaflet@1.4.0/dist/leaflet.js"></script>
     <script src="https://api.windy.com/assets/map-forecast/libBoot.js"></script>
     <style>
@@ -51,10 +52,28 @@
             color: #3fb950;
         }
 
-        /* Removes the default white square background Leaflet puts on custom div icons */
+/* Removes the default white square background Leaflet puts on custom div icons */
         .leaflet-div-icon {
             background: transparent;
             border: none;
+        }
+
+        /* ADD THIS ENTIRE BLOCK: Mobile-specific adjustments */
+        @media (max-width: 600px) {
+            .custom-popup {
+                font-size: 16px; /* Larger base text */
+                padding: 12px;   /* More breathing room */
+            }
+            .custom-popup h3 {
+                font-size: 22px; /* Larger title */
+            }
+            .custom-popup .icon {
+                font-size: 18px; /* Larger emojis/icons */
+            }
+            /* Scales up the directional arrow container by 30% on mobile */
+            .boat-arrow-icon > div {
+                transform: scale(1.3) !important;
+            }
         }
     </style>
 </head>

@@ -53,8 +53,26 @@ def fetch_and_parse():
                                     except:
                                         point_data["time"] = val_text
                                 elif name == "Velocity":
-                                    # Splits at the opening parenthesis and keeps only the "4.3 kn" part
-                                    point_data["speed"] = val_text.split('(')[0].strip()
+                                    try:
+                                        # If Garmin only gives us km/h
+                                        if "km/h" in val_text and "kn" not in val_text:
+                                            kmh_value = float(''.join(c for c in val_text if c.isdigit() or c == '.'))
+                                            knots_value = kmh_value / 1.852
+                                            point_data["speed"] = f"{knots_value:.1f} kn ({kmh_value:.1f} km/h)"
+                                        
+                                        # If Garmin gives us only knots (just in case they change the feed)
+                                        elif "kn" in val_text and "km/h" not in val_text:
+                                            knots_value = float(''.join(c for c in val_text if c.isdigit() or c == '.'))
+                                            kmh_value = knots_value * 1.852
+                                            point_data["speed"] = f"{knots_value:.1f} kn ({kmh_value:.1f} km/h)"
+                                            
+                                        # If it already has both, pass it straight through
+                                        else:
+                                            point_data["speed"] = val_text
+                                            
+                                    except ValueError:
+                                        # Fallback if the string contains unexpected characters
+                                        point_data["speed"] = val_text
                                 elif name == "Course":
                                     point_data["course"] = val_text
                                 elif name == "Elevation":

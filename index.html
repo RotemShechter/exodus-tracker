@@ -166,6 +166,7 @@
                             currentMarker = L.marker([latestPoint.lat, latestPoint.lon], {icon: customArrow})
                                 .addTo(map)
                                 .bindPopup(popupHTML, { minWidth: 280 });
+                                .openPopup();
                         }
                     })
                     .catch(err => console.error("Error loading track data:", err));

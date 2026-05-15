@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Exodus Live Tracking</title>
+    <!-- Windy API requires Leaflet as its base map engine -->
+    <script src="https://unpkg.com/leaflet@1.4.0/dist/leaflet.js"></script>
+    <script src="https://api.windy.com/assets/map-forecast/libBoot.js"></script>
+    <style>
+        body { margin: 0; padding: 0; }
+        #windy { width: 100vw; height: 100vh; }
+    </style>
+</head>
+<body>
+    <div id="windy"></div>
+    
+    <script>
+        // 1. Initialize the map
+        const options = {
+            key: 'Jiu2Pge5hfsJNNMp0IIiEmsYEt4M7M8p', // Insert your free key here
+            verbose: false,
+            lat: 39.3, // Centered roughly on the Med / Volos area
+            lon: 22.9,
+            zoom: 7,
+        };
+
+        windyInit(options, windyAPI => {
+            const { map } = windyAPI;
+
+            // 2. Fetch the automated data file
+            fetch('track.json')
+                .then(response => response.json())
+                .then(coordinates => {
+                    if (coordinates.length > 0) {
+                        
+                        // 3. Draw a clean, continuous line (no tags)
+                        const trackLine = L.polyline(coordinates, {
+                            color: '#ffffff', // White line
+                            weight: 3,        // Line thickness
+                            opacity: 0.9,
+                            smoothFactor: 1
+                        }).addTo(map);
+
+                        // Automatically frame the map so the whole track is visible
+                        map.fitBounds(trackLine.getBounds());
+                        
+                        // Optional: Drop a single standard pin on the very last known location
+                        const currentPosition = coordinates[coordinates.length - 1];
+                        L.marker(currentPosition).addTo(map)
+                            .bindPopup("Latest Position")
+                            .openPopup();
+                    }
+                })
+                .catch(err => console.error("Error loading track data:", err));
+        });
+    </script>
+</body>
+</html>

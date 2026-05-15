@@ -46,7 +46,7 @@ def fetch_and_parse():
                             value = data.find('kml:value', ns)
                             if value is not None and value.text:
                                 val_text = value.text.strip()
-                                elif name == "Time UTC":
+                                if name == "Time UTC":
                                     try:
                                         # Parse the raw Garmin string and define it as UTC
                                         dt_utc = datetime.strptime(val_text, "%m/%d/%Y %I:%M:%S %p")

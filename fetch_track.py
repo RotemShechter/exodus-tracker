@@ -2,6 +2,7 @@ import urllib.request
 import xml.etree.ElementTree as ET
 import json
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 # Adjust the start date (?d1=) to the beginning of your voyage.
 URL = "https://share.garmin.com/Feed/Share/Exodussail?d1=2026-04-01T00:00z"
@@ -45,12 +46,23 @@ def fetch_and_parse():
                             value = data.find('kml:value', ns)
                             if value is not None and value.text:
                                 val_text = value.text.strip()
-                                if name == "Time UTC":
-                                    # Format time nicely if possible
+                                elif name == "Time UTC":
                                     try:
-                                        dt = datetime.strptime(val_text, "%m/%d/%Y %I:%M:%S %p")
-                                        point_data["time"] = dt.strftime("%a, %d %b %Y %H:%M:%S GMT")
-                                    except:
+                                        # Parse the raw Garmin string and define it as UTC
+                                        dt_utc = datetime.strptime(val_text, "%m/%d/%Y %I:%M:%S %p")
+                                        dt_utc = dt_utc.replace(tzinfo=ZoneInfo("UTC"))
+                                        
+                                        # Convert mathematically to Israel Time
+                                        dt_il = dt_utc.astimezone(ZoneInfo("Asia/Jerusalem"))
+                                        
+                                        # Format it: "Fri, 15 May 2026 08:29:00 IDT"
+                                        primary_time = dt_il.strftime("%a, %d %b %Y %H:%M:%S %Z")
+                                        # Format the original: "(05:29:00 GMT)"
+                                        original_time = dt_utc.strftime("%H:%M:%S GMT")
+                                        
+                                        point_data["time"] = f"{primary_time} ({original_time})"
+                                    except Exception:
+                                        # Fallback just in case Garmin sends a weird format
                                         point_data["time"] = val_text
                                 elif name == "Velocity":
                                     try:

@@ -39,7 +39,8 @@ jobs:
         run: |
           # Create a temporary folder for the web server
           mkdir _site
-          cp -r * _site/
+          # Explicitly copy ONLY the files the website needs to function
+          cp index.html track.json _site/
           # Inject the secret ONLY into the temporary deployment copy
           sed -i "s/{{WINDY_KEY}}/${{ secrets.WINDY_API_KEY }}/g" _site/index.html
 

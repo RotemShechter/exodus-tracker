@@ -2,10 +2,9 @@ name: Update Track Data
 
 on:
   schedule:
-    - cron: '*/15 * * * *'
+    - cron: '*/10 * * * *'
   workflow_dispatch:
 
-# Allow this job to commit files and deploy to GitHub Pages
 permissions:
   contents: write
   pages: write
@@ -31,26 +30,21 @@ jobs:
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           git add track.json
-          # We ONLY commit the JSON file back to the repository to keep history.
-          # We DO NOT commit index.html.
           git diff --quiet && git diff --staged --quiet || (git commit -m "Automated track update" && git push)
 
       - name: Prepare Deployment Artifact
         run: |
-          # Create a temporary folder for the web server
           mkdir _site
-          # Explicitly copy ONLY the files the website needs to function
           cp index.html track.json _site/
-          # Inject the secret ONLY into the temporary deployment copy
           sed -i "s/{{WINDY_KEY}}/${{ secrets.WINDY_API_KEY }}/g" _site/index.html
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: '_site/'
+          retention-days: 1
 
   deploy:
-    # This second job handles pushing the temporary folder to the live web server
     needs: update-data
     environment:
       name: github-pages

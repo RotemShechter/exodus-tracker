@@ -7,6 +7,32 @@ from zoneinfo import ZoneInfo
 # Adjust the start date (?d1=) to the beginning of your voyage.
 URL = "https://share.garmin.com/Feed/Share/Exodussail?d1=2026-04-01T00:00z"
 
+def format_time(raw_time_str):
+    """
+    Converts Garmin's raw time string (e.g., "5/16/2026 8:39:30 AM") 
+    into a stacked, localized string: "Sat, 16 May 2026 11:39:30 IDT (08:39:30 GMT)"
+    """
+    try:
+        # 1. Parse Garmin's specific KML time format
+        dt = datetime.strptime(raw_time_str, "%m/%d/%Y %I:%M:%S %p")
+        
+        # 2. Assign UTC timezone to the raw time
+        dt_utc = dt.replace(tzinfo=ZoneInfo("UTC"))
+        
+        # 3. Convert to Local Time (Asia/Jerusalem will automatically handle IST/IDT daylight savings)
+        dt_local = dt_utc.astimezone(ZoneInfo("Asia/Jerusalem"))
+        
+        # 4. Format into the exact string expected by the dashboard
+        local_str = dt_local.strftime("%a, %d %b %Y %H:%M:%S %Z")
+        gmt_str = dt_utc.strftime("%H:%M:%S GMT")
+        
+        return f"{local_str} ({gmt_str})"
+        
+    except ValueError:
+        # Fallback just in case Garmin changes their format
+        return raw_time_str
+
+
 def fetch_and_parse():
     try:
         req = urllib.request.Request(URL, headers={'User-Agent': 'Mozilla/5.0'})
@@ -38,53 +64,36 @@ def fetch_and_parse():
                         "event": "Tracking point"
                     }
 
-                    # Extract ExtendedData if available
                     extended_data = placemark.find('.//kml:ExtendedData', ns)
                     if extended_data is not None:
-                        for data in extended_data.findall('kml:Data', ns):
+                        for data in extended_data.findall('.//kml:Data', ns):
                             name = data.get('name')
-                            value = data.find('kml:value', ns)
-                            if value is not None and value.text:
-                                val_text = value.text.strip()
-                                if name == "Time UTC":
-                                    try:
-                                        # Parse the raw Garmin string and define it as UTC
-                                        dt_utc = datetime.strptime(val_text, "%m/%d/%Y %I:%M:%S %p")
-                                        dt_utc = dt_utc.replace(tzinfo=ZoneInfo("UTC"))
-                                        
-                                        # Convert mathematically to Israel Time
-                                        dt_il = dt_utc.astimezone(ZoneInfo("Asia/Jerusalem"))
-                                        
-                                        # Format it: "Fri, 15 May 2026 08:29:00 IDT"
-                                        primary_time = dt_il.strftime("%a, %d %b %Y %H:%M:%S %Z")
-                                        # Format the original: "(05:29:00 GMT)"
-                                        original_time = dt_utc.strftime("%H:%M:%S GMT")
-                                        
-                                        point_data["time"] = f"{primary_time} ({original_time})"
-                                    except Exception:
-                                        # Fallback just in case Garmin sends a weird format
-                                        point_data["time"] = val_text
+                            val = data.find('kml:value', ns)
+                            if val is not None and val.text:
+                                val_text = val.text.strip()
+
+                                if name == "Time":
+                                    # Pass the raw time through our new formatter!
+                                    point_data["time"] = format_time(val_text)
+                                    
                                 elif name == "Velocity":
                                     try:
-                                        # If Garmin only gives us km/h
                                         if "km/h" in val_text and "kn" not in val_text:
                                             kmh_value = float(''.join(c for c in val_text if c.isdigit() or c == '.'))
                                             knots_value = kmh_value / 1.852
                                             point_data["speed"] = f"{knots_value:.1f} kn ({kmh_value:.1f} km/h)"
-                                        
-                                        # If Garmin gives us only knots (just in case they change the feed)
+                                            
                                         elif "kn" in val_text and "km/h" not in val_text:
                                             knots_value = float(''.join(c for c in val_text if c.isdigit() or c == '.'))
                                             kmh_value = knots_value * 1.852
                                             point_data["speed"] = f"{knots_value:.1f} kn ({kmh_value:.1f} km/h)"
                                             
-                                        # If it already has both, pass it straight through
                                         else:
                                             point_data["speed"] = val_text
                                             
                                     except ValueError:
-                                        # Fallback if the string contains unexpected characters
                                         point_data["speed"] = val_text
+                                        
                                 elif name == "Course":
                                     point_data["course"] = val_text
                                 elif name == "Elevation":
@@ -94,10 +103,28 @@ def fetch_and_parse():
 
                     track_data.append(point_data)
 
+        if not track_data:
+            print("No track points found in feed.")
+            return
+
+        # --- THE OPTIMIZATION BLOCK ---
+        # 1. Grab the very last point for the dashboard instruments
+        latest_payload = track_data[-1]
+        
+        # 2. Strip all text out of the history array to save megabytes
+        history_payload = [[pt["lat"], pt["lon"]] for pt in track_data]
+
+        # 3. Assemble the final lightweight structure
+        optimized_output = {
+            "latest": latest_payload,
+            "history": history_payload
+        }
+
         with open('track.json', 'w') as f:
-            json.dump(track_data, f)
+            # indent=None minimizes the JSON into a single tight line
+            json.dump(optimized_output, f, separators=(',', ':'))
             
-        print(f"Successfully processed {len(track_data)} track points.")
+        print(f"Successfully processed {len(track_data)} track points into optimized JSON.")
 
     except Exception as e:
         print(f"Error fetching or parsing track: {e}")

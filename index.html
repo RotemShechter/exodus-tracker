@@ -171,7 +171,7 @@
 
     <script>
         const options = {
-            key: '{{WINDY_KEY}}', 
+            key: 'wXFt6OdqPeYqmBQy5VkcyfSuDGqBEqPv', 
             verbose: false,
             lat: 39.3, 
             lon: 22.9,
@@ -217,9 +217,10 @@
                 fetch('track.json?t=' + new Date().getTime())
                     .then(response => response.json())
                     .then(data => {
-                        if (data && data.length > 0) {
-                            const coordinates = data.map(point => [point.lat, point.lon]);
-                            const latestPoint = data[data.length - 1];
+                        // Read from optimized JSON structure object
+                        if (data && data.latest && data.history) {
+                            const coordinates = data.history;
+                            const latestPoint = data.latest;
 
                             if (currentMarker) map.removeLayer(currentMarker);
                             if (currentTrackLine) map.removeLayer(currentTrackLine);
@@ -312,12 +313,11 @@
             setInterval(fetchAndUpdateMap, 30000);
             
             setInterval(() => {
-                // Safely references the original raw tracking data logic for precise timing updates
                 fetch('track.json?t=' + new Date().getTime())
                     .then(response => response.json())
                     .then(data => {
-                        if (data && data.length > 0) {
-                            updateDataAge(data[data.length - 1].time);
+                        if (data && data.latest) {
+                            updateDataAge(data.latest.time);
                         }
                     });
             }, 30000);

@@ -68,7 +68,6 @@
         .dash-header:hover .dash-chevron { color: var(--accent); }
         #dashboard.collapsed .dash-chevron { transform: rotate(180deg); }
 
-        .vessel-icon { font-size: 22px; filter: drop-shadow(0 0 4px rgba(88,166,255,0.4)); }
         .vessel-name { font-size: 16px; font-weight: 700; color: var(--text-primary); }
         .vessel-sub { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
 
@@ -111,7 +110,6 @@
         /* Mobile specific scaling */
         @media (max-width: 480px) {
             #dashboard { 
-                /* Locks the width and leaves a 60px clear safe-zone on the right for Windy controls */
                 width: 300px;
                 max-width: calc(100vw - 60px); 
                 top: 10px; 
@@ -187,25 +185,32 @@
             let currentMarker = null;
             let isFirstLoad = true; 
 
-            // Calculate Data Age and update ONLY the pulsing dot
+            // Calculate Data Age efficiently using the pre-formatted GMT section
             function updateDataAge(timeString) {
-                const pointTime = new Date(timeString).getTime();
-                if (isNaN(pointTime)) return; 
-                
-                const now = new Date().getTime();
-                const diffMins = Math.floor((now - pointTime) / 60000);
-                
-                let dotClass = 'status-dot'; // Default Green
-                
-                if (diffMins < 60) {
-                    dotClass = 'status-dot'; // Green
-                } else if (diffMins < 1440) {
-                    dotClass = 'status-dot stale'; // Orange
-                } else {
-                    dotClass = 'status-dot error'; // Red
+                let parts = timeString.split(' (');
+                if (parts.length === 2) {
+                    let datePart = parts[0].substring(0, 16); 
+                    let gmtTimePart = parts[1].replace(')', ''); 
+                    let cleanUTC = `${datePart} ${gmtTimePart}`; 
+                    
+                    const pointTime = new Date(cleanUTC).getTime();
+                    if (!isNaN(pointTime)) {
+                        const now = new Date().getTime();
+                        const diffMins = Math.floor((now - pointTime) / 60000);
+                        
+                        let dotClass = 'status-dot'; 
+                        if (diffMins < 60) {
+                            dotClass = 'status-dot'; 
+                        } else if (diffMins < 1440) {
+                            dotClass = 'status-dot stale'; 
+                        } else {
+                            dotClass = 'status-dot error'; 
+                        }
+                        document.getElementById('status-dot').className = dotClass;
+                        return;
+                    }
                 }
-                
-                document.getElementById('status-dot').className = dotClass;
+                document.getElementById('status-dot').className = 'status-dot error';
             }
 
             function fetchAndUpdateMap() {
@@ -216,11 +221,9 @@
                             const coordinates = data.map(point => [point.lat, point.lon]);
                             const latestPoint = data[data.length - 1];
 
-                            // 1. Clean up old map graphics
                             if (currentMarker) map.removeLayer(currentMarker);
                             if (currentTrackLine) map.removeLayer(currentTrackLine);
                             
-                            // 2. Draw the tracking line
                             if (coordinates.length > 1) {
                                 currentTrackLine = L.polyline(coordinates, {
                                     color: '#ffea00',
@@ -238,66 +241,48 @@
                                 isFirstLoad = false;
                             }
                             
-                            // 3. Populate the Floating Dashboard
                             document.getElementById('dash-coords').textContent = `${latestPoint.lat.toFixed(4)}°N, ${Math.abs(latestPoint.lon).toFixed(4)}°${latestPoint.lon < 0 ? 'W' : 'E'}`;
                             
-                            // Parse speed and stack Knots over KM/H
-                            let rawSpeed = latestPoint.speed || '0 km/h';
-                            let speedMatch = rawSpeed.match(/([\d.]+)/);
-                            
-                            if (speedMatch) {
-                                let numericValue = parseFloat(speedMatch[1]);
-                                let knots, kmh;
-                                
-                                // If Garmin sends Knots natively
-                                if (rawSpeed.toLowerCase().includes('kn')) {
-                                    knots = numericValue.toFixed(1);
-                                    kmh = (numericValue * 1.852).toFixed(1); // Convert to km/h
-                                } 
-                                // If Garmin sends km/h natively
-                                else {
-                                    kmh = numericValue.toFixed(1);
-                                    knots = (numericValue / 1.852).toFixed(1); // Convert to knots
-                                }
+                            // Parse pre-formatted Python speed string without redundant math conversions
+                            let rawSpeed = latestPoint.speed || '0.0 kn (0.0 km/h)';
+                            let speedParts = rawSpeed.split(' (');
+                            let knots = speedParts[0]; 
+                            let kmh = speedParts[1] ? speedParts[1].replace(')', '') : ''; 
 
-                                // Always print the stacked layout
-                                document.getElementById('dash-speed').innerHTML = `
-                                    <div style="line-height: 1.1;">
-                                        <div>${knots} kn</div>
-                                        <div style="font-size: 10px; color: var(--text-muted); font-weight: 400; padding-top: 3px;">${kmh} km/h</div>
-                                    </div>
-                                `;
-                            } else {
-                                document.getElementById('dash-speed').textContent = rawSpeed;
-                            }           
+                            document.getElementById('dash-speed').innerHTML = `
+                                <div style="line-height: 1.1;">
+                                    <div>${knots}</div>
+                                    <div style="font-size: 10px; color: var(--text-muted); font-weight: 400; padding-top: 3px;">${kmh}</div>
+                                </div>
+                            `;
 
                             document.getElementById('dash-course').textContent = latestPoint.course || '0';
                             document.getElementById('dash-elevation').textContent = latestPoint.elevation || '—';
                             document.getElementById('dash-gps').textContent = 'Valid Fix'; 
                             
-                            // Parse Time and stack Local over GMT
+                            // Parse pre-formatted Python time string without constructing heavy date objects
                             let rawTime = latestPoint.time || '';
-                            let cleanTimeStr = rawTime.includes('UTC') || rawTime.includes('GMT') ? rawTime : rawTime + ' UTC';
-                            let dateObj = new Date(cleanTimeStr);
+                            let timeParts = rawTime.split(' (');
+                            let localTime = '—';
+                            let gmtTime = '—';
                             
-                            if (!isNaN(dateObj.getTime())) {
-                                let localTime = dateObj.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-                                let gmtTime = dateObj.toLocaleTimeString('en-US', { timeZone: 'UTC', hour: '2-digit', minute: '2-digit', hour12: false });
-                                
-                                document.getElementById('dash-updated').innerHTML = `
-                                    <div style="line-height: 1.1;">
-                                        <div>${localTime}</div>
-                                        <div style="font-size: 10px; color: var(--text-muted); font-weight: 400; padding-top: 3px;">${gmtTime} GMT</div>
-                                    </div>
-                                `;
+                            if (timeParts.length === 2) {
+                                // Strips out the seconds cleanly to keep the dashboard professional and scannable
+                                localTime = timeParts[0].replace(/:\d{2}(?=\s[A-Z]+)/, ''); 
+                                gmtTime = timeParts[1].replace(')', '').replace(/:\d{2}(?=\s[A-Z]+)/, ''); 
                             } else {
-                                document.getElementById('dash-updated').textContent = rawTime;
+                                localTime = rawTime;
                             }
+
+                            document.getElementById('dash-updated').innerHTML = `
+                                <div style="line-height: 1.1;">
+                                    <div>${localTime}</div>
+                                    <div style="font-size: 10px; color: var(--text-muted); font-weight: 400; padding-top: 3px;">${gmtTime}</div>
+                                </div>
+                            `;
                             
-                            // 4. Update the pulsing status dot
                             updateDataAge(latestPoint.time);
                             
-                            // 5. Draw the Boat Arrow
                             let courseAngle = parseFloat(latestPoint.course);
                             if (isNaN(courseAngle)) courseAngle = 0;
                             
@@ -322,18 +307,19 @@
                     .catch(err => console.error("Error loading track data:", err));
             }
 
-            // Execute the initial load
             fetchAndUpdateMap();
 
-            // 1. Fetch new data every 30 seconds
             setInterval(fetchAndUpdateMap, 30000);
             
-            // 2. Update the pulsing dot color periodically in case the boat goes offline
             setInterval(() => {
-                const updatedText = document.getElementById('dash-updated').textContent;
-                if (updatedText !== '—') {
-                    updateDataAge(updatedText);
-                }
+                // Safely references the original raw tracking data logic for precise timing updates
+                fetch('track.json?t=' + new Date().getTime())
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data && data.length > 0) {
+                            updateDataAge(data[data.length - 1].time);
+                        }
+                    });
             }, 30000);
         });
     </script>

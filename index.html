@@ -1,95 +1,121 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
     <title>Exodus Live Tracking</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet" />
+
     <script src="https://unpkg.com/leaflet@1.4.0/dist/leaflet.js"></script>
     <script src="https://api.windy.com/assets/map-forecast/libBoot.js"></script>
+    
     <style>
+        /* 1. Base Map Locking */
         html, body { 
-            margin: 0; 
-            padding: 0; 
-            width: 100%; 
-            height: 100%; 
-            overflow: hidden; /* Physically disables any ability to scroll or bounce */
-            overscroll-behavior: none; /* Stops the "pull-to-refresh" rubber-band effect */
+            margin: 0; padding: 0; width: 100%; height: 100%; 
+            overflow: hidden; overscroll-behavior: none;
+            font-family: 'Inter', sans-serif; background: #0a0e1a;
         }
+        #windy { position: absolute; inset: 0; width: 100%; height: 100%; }
         
-        #windy { 
-            position: absolute; 
-            top: 0; 
-            bottom: 0; 
-            left: 0; 
-            right: 0; 
-            width: 100%; 
-            height: 100%;
-        }
-        
-        .leaflet-popup-content-wrapper {
-            /* If the black text is too hard to read, change #1a1c23 to #ffffff (white) */
-            background-color: #1a1c23; 
-            color: #9ba3af;
-            border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            padding: 2px;
-        }
-        .leaflet-popup-tip {
-            background-color: #1a1c23; /* Match this to the wrapper background */
-        }
-        .custom-popup {
-            padding: 8px;
-            font-size: 14px;
-            line-height: 1.6;
-        }
-        .custom-popup h3 {
-            color: #58a6ff;
-            margin: 0 0 12px 0;
-            font-size: 18px;
-            font-weight: 600;
-        }
-        .custom-popup .row {
-            margin-bottom: 4px;
-            display: flex;
-            align-items: flex-start;
-        }
-        .custom-popup .icon {
-            margin-right: 8px;
-            font-size: 16px;
-        }
-        
-        /* IMPROVEMENT 1: Parameters black and bold */
-        .custom-popup strong {
-            color: #000000;
-            font-weight: 900; 
-        }
-        
-        .custom-popup .green-text {
-            color: #3fb950;
+        /* 2. Map Marker Styles */
+        .leaflet-div-icon { background: transparent; border: none; }
+        .mobile-scale { transform: scale(1.4); transform-origin: center; }
+
+        /* 3. Floating Glass Dashboard */
+        :root {
+            --bg-card: rgba(26, 28, 35, 0.88);
+            --bg-card-border: #444c56;
+            --accent: #58a6ff;
+            --success: #3fb950;
+            --warning: #d29922;
+            --danger: #f85149;
+            --text-primary: #e6edf3;
+            --text-muted: #8b949e;
         }
 
-/* Removes the default white square background Leaflet puts on custom div icons */
-        .leaflet-div-icon {
-            background: transparent;
-            border: none;
+        #dashboard {
+            position: absolute;
+            top: 15px; left: 15px;
+            z-index: 1000;
+            width: 300px;
+            background: var(--bg-card);
+            border: 1px solid var(--bg-card-border);
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+            overflow: hidden;
+            transition: transform 0.3s ease;
         }
 
-        /* ADD THIS ENTIRE BLOCK: Mobile-specific adjustments */
-        @media (max-width: 600px) {
-            .custom-popup {
-                font-size: 16px; /* Larger base text */
-                padding: 12px;   /* More breathing room */
-            }
-            .custom-popup h3 {
-                font-size: 22px; /* Larger title */
-            }
-            .custom-popup .icon {
-                font-size: 18px; /* Larger emojis/icons */
-            }
-            /* Scales up the directional arrow container by 30% on mobile */
-            .mobile-scale { 
-                transform: scale(1.3); 
-                transform-origin: center;
+        .dash-header {
+            display: flex; align-items: center; gap: 10px;
+            padding: 12px 16px;
+            background: rgba(88, 166, 255, 0.08);
+            border-bottom: 1px solid var(--bg-card-border);
+            cursor: pointer; user-select: none;
+        }
+        .dash-header:hover { background: rgba(88, 166, 255, 0.12); }
+
+        .dash-collapse-btn { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+        .dash-chevron {
+            font-style: normal; font-size: 14px; color: var(--text-muted);
+            transition: transform 0.25s ease; line-height: 1;
+        }
+        .dash-header:hover .dash-chevron { color: var(--accent); }
+        #dashboard.collapsed .dash-chevron { transform: rotate(180deg); }
+
+        .vessel-icon { font-size: 22px; filter: drop-shadow(0 0 4px rgba(88,166,255,0.4)); }
+        .vessel-name { font-size: 16px; font-weight: 700; color: var(--text-primary); }
+        .vessel-sub { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+
+        /* Pulsing Status Dot */
+        .status-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: var(--success); box-shadow: 0 0 8px var(--success);
+            animation: pulse 2s infinite; flex-shrink: 0;
+        }
+        .status-dot.stale { background: var(--warning); box-shadow: 0 0 8px var(--warning); animation: pulse 3s infinite;}
+        .status-dot.error { background: var(--danger); box-shadow: 0 0 8px var(--danger); animation: none; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.1); }
+        }
+
+        /* Dashboard Body & Data Rows */
+        .dash-body {
+            padding: 14px 16px; display: flex; flex-direction: column; gap: 12px;
+            overflow: hidden; max-height: 500px;
+            transition: max-height 0.3s ease, padding 0.3s ease;
+        }
+        #dashboard.collapsed .dash-body { max-height: 0; padding-top: 0; padding-bottom: 0; border: none; }
+
+        .data-row { display: flex; flex-direction: column; gap: 2px; }
+        .data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        
+        .data-label {
+            font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
+            color: var(--text-muted); font-weight: 600; display: flex; align-items: center; gap: 4px;
+        }
+        .data-value {
+            font-family: 'JetBrains Mono', monospace; font-size: 13px;
+            color: var(--text-primary); font-weight: 500;
+        }
+        .data-value.accent { color: var(--accent); }
+        .data-value.green { color: var(--success); }
+
+        /* Mobile specific scaling */
+        @media (max-width: 480px) {
+            #dashboard { 
+                /* Locks the width and leaves a 60px clear safe-zone on the right for Windy controls */
+                width: 300px;
+                max-width: calc(100vw - 60px); 
+                top: 10px; 
+                left: 10px; 
             }
         }
     </style>
@@ -97,9 +123,57 @@
 <body>
     <div id="windy"></div>
     
+    <div id="dashboard">
+        <div class="dash-header" onclick="document.getElementById('dashboard').classList.toggle('collapsed')">
+            <span class="vessel-icon">⛵</span>
+            <div>
+                <div class="vessel-name">Exodus</div>
+                <div class="vessel-sub">Live Tracker Dashboard</div>
+            </div>
+            <div class="dash-collapse-btn">
+                <div class="status-dot" id="status-dot"></div>
+                <i class="dash-chevron">▲</i>
+            </div>
+        </div>
+        
+        <div class="dash-body">
+            <div class="data-row">
+                <div class="data-label">📍 Coordinates</div>
+                <div class="data-value accent" id="dash-coords">—</div>
+            </div>
+
+            <div class="data-grid">
+                <div class="data-row">
+                    <div class="data-label">⚡ Speed</div>
+                    <div class="data-value" id="dash-speed">—</div>
+                </div>
+                <div class="data-row">
+                    <div class="data-label">🧭 Course</div>
+                    <div class="data-value" id="dash-course">—</div>
+                </div>
+            </div>
+
+            <div class="data-grid">
+                <div class="data-row">
+                    <div class="data-label">⬆️ Elevation</div>
+                    <div class="data-value" id="dash-elevation">—</div>
+                </div>
+                <div class="data-row">
+                    <div class="data-label">📡 GPS</div>
+                    <div class="data-value green" id="dash-gps">—</div>
+                </div>
+            </div>
+
+            <div class="data-row">
+                <div class="data-label">🕒 Last Update</div>
+                <div class="data-value" id="dash-updated">—</div>
+            </div>
+        </div>
+    </div>
+
     <script>
         const options = {
-            key: '{{WINDY_KEY}}', 
+            key: 'wXFt6OdqPeYqmBQy5VkcyfSuDGqBEqPv', 
             verbose: false,
             lat: 39.3, 
             lon: 22.9,
@@ -113,6 +187,27 @@
             let currentMarker = null;
             let isFirstLoad = true; 
 
+            // Calculate Data Age and update ONLY the pulsing dot
+            function updateDataAge(timeString) {
+                const pointTime = new Date(timeString).getTime();
+                if (isNaN(pointTime)) return; 
+                
+                const now = new Date().getTime();
+                const diffMins = Math.floor((now - pointTime) / 60000);
+                
+                let dotClass = 'status-dot'; // Default Green
+                
+                if (diffMins < 60) {
+                    dotClass = 'status-dot'; // Green
+                } else if (diffMins < 1440) {
+                    dotClass = 'status-dot stale'; // Orange
+                } else {
+                    dotClass = 'status-dot error'; // Red
+                }
+                
+                document.getElementById('status-dot').className = dotClass;
+            }
+
             function fetchAndUpdateMap() {
                 fetch('track.json?t=' + new Date().getTime())
                     .then(response => response.json())
@@ -121,18 +216,11 @@
                             const coordinates = data.map(point => [point.lat, point.lon]);
                             const latestPoint = data[data.length - 1];
 
-                            // 1. Capture popup state BEFORE deleting the old marker
-                            let shouldOpenPopup = isFirstLoad; 
-                            if (currentMarker) {
-                                shouldOpenPopup = currentMarker.isPopupOpen(); // Remembers if you had it open
-                                map.removeLayer(currentMarker);
-                            }
+                            // 1. Clean up old map graphics
+                            if (currentMarker) map.removeLayer(currentMarker);
+                            if (currentTrackLine) map.removeLayer(currentTrackLine);
                             
-                            if (currentTrackLine) {
-                                map.removeLayer(currentTrackLine);
-                            }
-                            
-                            // 2. Draw the new line
+                            // 2. Draw the tracking line
                             if (coordinates.length > 1) {
                                 currentTrackLine = L.polyline(coordinates, {
                                     color: '#ffea00',
@@ -150,20 +238,66 @@
                                 isFirstLoad = false;
                             }
                             
-                            // 3. Prepare the clean Popup
-                            const popupHTML = `
-                                <div class="custom-popup">
-                                    <h3>⛵ Exodus</h3>
-                                    <div class="row"><span class="icon">📍</span> <span><strong>Coords:</strong> ${latestPoint.lat.toFixed(4)}°N, ${Math.abs(latestPoint.lon).toFixed(4)}°${latestPoint.lon < 0 ? 'W' : 'E'}</span></div>
-                                    <div class="row"><span class="icon">⚡</span> <span><strong>Speed:</strong> ${latestPoint.speed}</span></div>
-                                    <div class="row"><span class="icon">🧭</span> <span><strong>Course:</strong> ${latestPoint.course}</span></div>
-                                    <div class="row"><span class="icon">⬆️</span> <span><strong>Elevation:</strong> ${latestPoint.elevation}</span></div>
-                                    <div class="row"><span class="icon">📡</span> <span><strong>GPS:</strong> <span class="green-text">Valid Fix</span></span></div>
-                                    <div class="row"><span class="icon">🕒</span> <span><strong>Updated:</strong> ${latestPoint.time}</span></div>
-                                </div>
-                            `;
+                            // 3. Populate the Floating Dashboard
+                            document.getElementById('dash-coords').textContent = `${latestPoint.lat.toFixed(4)}°N, ${Math.abs(latestPoint.lon).toFixed(4)}°${latestPoint.lon < 0 ? 'W' : 'E'}`;
+                            
+                            // Parse speed and stack Knots over KM/H
+                            let rawSpeed = latestPoint.speed || '0 km/h';
+                            let speedMatch = rawSpeed.match(/([\d.]+)/);
+                            
+                            if (speedMatch) {
+                                let numericValue = parseFloat(speedMatch[1]);
+                                let knots, kmh;
+                                
+                                // If Garmin sends Knots natively
+                                if (rawSpeed.toLowerCase().includes('kn')) {
+                                    knots = numericValue.toFixed(1);
+                                    kmh = (numericValue * 1.852).toFixed(1); // Convert to km/h
+                                } 
+                                // If Garmin sends km/h natively
+                                else {
+                                    kmh = numericValue.toFixed(1);
+                                    knots = (numericValue / 1.852).toFixed(1); // Convert to knots
+                                }
 
-                            // 4. Prepare the new Arrow (with mobile scaling fix included)
+                                // Always print the stacked layout
+                                document.getElementById('dash-speed').innerHTML = `
+                                    <div style="line-height: 1.1;">
+                                        <div>${knots} kn</div>
+                                        <div style="font-size: 10px; color: var(--text-muted); font-weight: 400; padding-top: 3px;">${kmh} km/h</div>
+                                    </div>
+                                `;
+                            } else {
+                                document.getElementById('dash-speed').textContent = rawSpeed;
+                            }           
+
+                            document.getElementById('dash-course').textContent = latestPoint.course || '0';
+                            document.getElementById('dash-elevation').textContent = latestPoint.elevation || '—';
+                            document.getElementById('dash-gps').textContent = 'Valid Fix'; 
+                            
+                            // Parse Time and stack Local over GMT
+                            let rawTime = latestPoint.time || '';
+                            let cleanTimeStr = rawTime.includes('UTC') || rawTime.includes('GMT') ? rawTime : rawTime + ' UTC';
+                            let dateObj = new Date(cleanTimeStr);
+                            
+                            if (!isNaN(dateObj.getTime())) {
+                                let localTime = dateObj.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                                let gmtTime = dateObj.toLocaleTimeString('en-US', { timeZone: 'UTC', hour: '2-digit', minute: '2-digit', hour12: false });
+                                
+                                document.getElementById('dash-updated').innerHTML = `
+                                    <div style="line-height: 1.1;">
+                                        <div>${localTime}</div>
+                                        <div style="font-size: 10px; color: var(--text-muted); font-weight: 400; padding-top: 3px;">${gmtTime} GMT</div>
+                                    </div>
+                                `;
+                            } else {
+                                document.getElementById('dash-updated').textContent = rawTime;
+                            }
+                            
+                            // 4. Update the pulsing status dot
+                            updateDataAge(latestPoint.time);
+                            
+                            // 5. Draw the Boat Arrow
                             let courseAngle = parseFloat(latestPoint.course);
                             if (isNaN(courseAngle)) courseAngle = 0;
                             
@@ -179,29 +313,28 @@
                                 className: 'boat-arrow-icon',
                                 html: arrowHtml,
                                 iconSize: [30, 30],
-                                iconAnchor: [15, 15],  
-                                popupAnchor: [0, -20]  
+                                iconAnchor: [15, 15]
                             });
 
-                            // 5. Draw the new Marker on the map
-                            currentMarker = L.marker([latestPoint.lat, latestPoint.lon], {icon: customArrow})
-                                .addTo(map)
-                                .bindPopup(popupHTML, { minWidth: 280 });
-
-                            // 6. Only open it if it was open before the refresh!
-                            if (shouldOpenPopup) {
-                                currentMarker.openPopup();
-                            }
+                            currentMarker = L.marker([latestPoint.lat, latestPoint.lon], {icon: customArrow}).addTo(map);
                         }
                     })
                     .catch(err => console.error("Error loading track data:", err));
             }
 
-            // Initial load
+            // Execute the initial load
             fetchAndUpdateMap();
 
-            // Set the timer (30 seconds)
+            // 1. Fetch new data every 30 seconds
             setInterval(fetchAndUpdateMap, 30000);
+            
+            // 2. Update the pulsing dot color periodically in case the boat goes offline
+            setInterval(() => {
+                const updatedText = document.getElementById('dash-updated').textContent;
+                if (updatedText !== '—') {
+                    updateDataAge(updatedText);
+                }
+            }, 30000);
         });
     </script>
 </body>

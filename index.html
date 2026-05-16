@@ -321,6 +321,15 @@
                         }
                     });
             }, 30000);
+
+            // Instantly update the map the moment the user switches back to this tab
+            document.addEventListener("visibilitychange", () => {
+                if (document.visibilityState === "visible") {
+                    console.log("Tab active: Fetching fresh tracking data...");
+                    fetchAndUpdateMap();
+                }
+            });
+            
         });
     </script>
 </body>

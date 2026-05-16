@@ -95,7 +95,8 @@ def fetch_and_parse():
                                         point_data["speed"] = val_text
                                         
                                 elif name == "Course":
-                                    point_data["course"] = val_text
+                                    # Removes the space before the degree symbol
+                                    point_data["course"] = val_text.replace(" °", "°")
                                 elif name == "Elevation":
                                     point_data["elevation"] = val_text
                                 elif name == "Event":

@@ -1,12 +1,12 @@
 # Exodus Live Tracker
 
-A lightweight, serverless live-tracking marine dashboard built for the Exodus by Daniel Pinsky or any other garmin tracker data.
+A lightweight, serverless live-tracking marine dashboard built for the Exodus of Daniel Pinsky or any other garmin tracker data.
 
-This project integrates Garmin satellite data with the Windy API to provide family, friends, and crew with a real-time, interactive map of the vessel's location, speed, course, and local weather conditions.
+This project integrates Garmin satellite data with the Windy API to provide family, friends, and followers with a real-time, interactive map of the vessel's location, speed, course, and local weather conditions.
 
 ## Features
 
-* **Serverless Architecture:** Completely static frontend (index.html). All data processing is handled upstream to generate a microscopic, lightning-fast track.json file.
+* **Serverless Architecture:** Completely static frontend (`index.html`). All data processing is handled upstream to generate a microscopic, lightning-fast `track.json` file. The data payload is optimized by splitting the `latest` telemetry from raw coordinate `history` to save massive amounts of bandwidth on satellite connections over long voyages.
 * **Glassmorphism UI:** A sleek, semi-transparent floating dashboard.
 * **Pulsing Status Indicator:** An automated visual heartbeat indicating data freshness:
   * **Green (Pulsing):** Active tracking (pinged within the last 60 mins).
@@ -22,17 +22,17 @@ This project integrates Garmin satellite data with the Windy API to provide fami
 * **Frontend:** HTML5, CSS3, Vanilla JavaScript
 * **Mapping Engine:** Leaflet.js (v1.4.0)
 * **Weather Overlay:** Windy Map API
-* **Data Format:** JSON (track.json)
+* **Data Format:** JSON (`track.json`)
 
 ## Deployment (GitHub Pages)
 
 This tracker is designed to be hosted entirely for free using GitHub Pages.
 
 1. Clone or fork this repository.
-2. Obtain a free API key from Windy API and replace '{{WINDY_KEY}}' in the index.html file with your actual key.
-3. Ensure your upstream Garmin data pipeline is correctly outputting to track.json in the root directory.
+2. Obtain a free API key from Windy API and replace `'{{WINDY_KEY}}'` in the `index.html` file with your actual key.
+3. Ensure your upstream Garmin data pipeline is correctly outputting to `track.json` in the root directory.
 4. Go to your repository settings on GitHub -> Pages.
-5. Set the source to deploy from the main branch.
+5. Set the source to deploy from the `main` branch.
 6. (Optional) Add your custom domain to the GitHub Pages settings.
 
 ## Local Testing & Development
@@ -41,29 +41,36 @@ If you are modifying the UI or testing data formats, you can run the tracker loc
 
 1. Start a local Python server:
    Open your terminal, navigate to the project folder, and run:
+   ```bash
    python3 -m http.server 8000
 
 2. View on your computer:
-   Open your browser and navigate to http://localhost:8000
-
+Open your browser and navigate to `http://localhost:8000`
 3. Test on your mobile phone:
-   To test the mobile UI and Windy menu overlays, ensure your phone is on the same Wi-Fi network as your computer.
-   * Find your computer's local IP address.
-   * On your phone's browser, navigate to: http://YOUR_LOCAL_IP:8000
+To test the mobile UI and Windy menu overlays, ensure your phone is on the same Wi-Fi network as your computer.
+* Find your computer's local IP address.
+* On your phone's browser, navigate to: `http://YOUR_LOCAL_IP:8000`
+
+
 
 ## Expected track.json Data Structure
 
-The frontend expects a continuous JSON array of location objects.
+The frontend is highly optimized for low-bandwidth environments. It expects a single JSON object containing the `latest` verbose telemetry for the dashboard instruments, and a `history` array containing only raw `[lat, lon]` pairs to draw the map route.
 
 ```json
-[
-  {
-    "lat": 39.3000,
-    "lon": 22.9000,
-    "elevation": "0 m",
-    "course": "45",
-    "speed": "4.9 kn",
-    "time": "2026-05-16 14:30:00 UTC",
-    "event": "Tracking message received"
-  }
-]
+{
+  "latest": {
+    "lat": 45.61783,
+    "lon": -25.60896,
+    "time": "Sat, 16 May 2026 11:39:30 IDT (08:39:30 GMT)",
+    "speed": "6.0 kn (11.1 km/h)",
+    "course": "67.50 ° True",
+    "elevation": "2.34 m from MSL",
+    "event": "Tracking message received."
+  },
+  "history": [
+    [39.3000, 22.9000],
+    [41.2000, -10.5000],
+    [45.61783, -25.60896]
+  ]
+}

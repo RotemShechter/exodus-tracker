@@ -109,12 +109,10 @@
         windyInit(options, windyAPI => {
             const { map } = windyAPI;
 
-            // Variables to hold our map layers so we can delete the old ones before drawing new ones
             let currentTrackLine = null;
             let currentMarker = null;
             let isFirstLoad = true; 
 
-            // We wrap the fetching logic in a function so we can call it repeatedly
             function fetchAndUpdateMap() {
                 fetch('track.json?t=' + new Date().getTime())
                     .then(response => response.json())
@@ -123,9 +121,16 @@
                             const coordinates = data.map(point => [point.lat, point.lon]);
                             const latestPoint = data[data.length - 1];
 
-                            // 1. Clean up old graphics from the map
-                            if (currentTrackLine) map.removeLayer(currentTrackLine);
-                            if (currentMarker) map.removeLayer(currentMarker);
+                            // 1. Capture popup state BEFORE deleting the old marker
+                            let shouldOpenPopup = isFirstLoad; 
+                            if (currentMarker) {
+                                shouldOpenPopup = currentMarker.isPopupOpen(); // Remembers if you had it open
+                                map.removeLayer(currentMarker);
+                            }
+                            
+                            if (currentTrackLine) {
+                                map.removeLayer(currentTrackLine);
+                            }
                             
                             // 2. Draw the new line
                             if (coordinates.length > 1) {
@@ -136,7 +141,6 @@
                                     smoothFactor: 1
                                 }).addTo(map);
 
-                                // Only lock the camera to the boat the VERY FIRST time the page loads
                                 if (isFirstLoad) {
                                     map.fitBounds(currentTrackLine.getBounds(), { maxZoom: 12, padding: [50, 50] });
                                     isFirstLoad = false;
@@ -159,7 +163,7 @@
                                 </div>
                             `;
 
-                            // 4. Prepare the new Arrow
+                            // 4. Prepare the new Arrow (with mobile scaling fix included)
                             let courseAngle = parseFloat(latestPoint.course);
                             if (isNaN(courseAngle)) courseAngle = 0;
                             
@@ -182,17 +186,21 @@
                             // 5. Draw the new Marker on the map
                             currentMarker = L.marker([latestPoint.lat, latestPoint.lon], {icon: customArrow})
                                 .addTo(map)
-                                .bindPopup(popupHTML, { minWidth: 280 })
-                                .openPopup();
+                                .bindPopup(popupHTML, { minWidth: 280 });
+
+                            // 6. Only open it if it was open before the refresh!
+                            if (shouldOpenPopup) {
+                                currentMarker.openPopup();
+                            }
                         }
                     })
                     .catch(err => console.error("Error loading track data:", err));
             }
 
-            // Execute the initial radar sweep as soon as the page loads
+            // Initial load
             fetchAndUpdateMap();
 
-            // Set the timer: run the sweep again every 0.5 minutes (30,000 milliseconds)
+            // Set the timer (30 seconds)
             setInterval(fetchAndUpdateMap, 30000);
         });
     </script>

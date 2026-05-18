@@ -24,7 +24,7 @@
         .leaflet-div-icon { background: transparent; border: none; }
         .mobile-scale { transform: scale(1.4); transform-origin: center; }
 
-        /* 3. Floating Glass Dashboard */
+        /* 3. Floating Glass Dashboards Container */
         :root {
             --bg-card: rgba(26, 28, 35, 0.88);
             --bg-card-border: #444c56;
@@ -36,10 +36,18 @@
             --text-muted: #8b949e;
         }
 
-        #dashboard {
+        #dash-container {
             position: absolute;
             top: 15px; left: 15px;
             z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 15px; 
+            transition: all 0.3s ease;
+        }
+
+        #dashboard, #weather-dashboard {
+            position: relative; 
             width: 300px;
             background: var(--bg-card);
             border: 1px solid var(--bg-card-border);
@@ -68,6 +76,7 @@
         .dash-header:hover .dash-chevron { color: var(--accent); }
         #dashboard.collapsed .dash-chevron { transform: rotate(180deg); }
 
+        .vessel-icon { font-size: 22px; filter: drop-shadow(0 0 4px rgba(88,166,255,0.4)); }
         .vessel-name { font-size: 16px; font-weight: 700; color: var(--text-primary); }
         .vessel-sub { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
 
@@ -95,6 +104,7 @@
 
         .data-row { display: flex; flex-direction: column; gap: 2px; }
         .data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .weather-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 14px 16px; }
         
         .data-label {
             font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
@@ -109,11 +119,11 @@
 
         /* Mobile specific scaling */
         @media (max-width: 480px) {
-            #dashboard { 
-                width: 300px;
-                max-width: calc(100vw - 60px); 
-                top: 10px; 
-                left: 10px; 
+            #dash-container { 
+                top: 10px; left: 10px; 
+            }
+            #dashboard, #weather-dashboard {
+                max-width: calc(100vw - 60px);
             }
         }
     </style>
@@ -121,52 +131,80 @@
 <body>
     <div id="windy"></div>
     
-    <div id="dashboard">
-        <div class="dash-header" onclick="document.getElementById('dashboard').classList.toggle('collapsed')">
-            <span class="vessel-icon">⛵</span>
-            <div>
-                <div class="vessel-name">Exodus</div>
-                <div class="vessel-sub">Live Tracker Dashboard</div>
-            </div>
-            <div class="dash-collapse-btn">
-                <div class="status-dot" id="status-dot"></div>
-                <i class="dash-chevron">▲</i>
-            </div>
-        </div>
+    <div id="dash-container">
         
-        <div class="dash-body">
-            <div class="data-row">
-                <div class="data-label">📍 Coordinates</div>
-                <div class="data-value accent" id="dash-coords">—</div>
-            </div>
-
-            <div class="data-grid">
-                <div class="data-row">
-                    <div class="data-label">⚡ Speed</div>
-                    <div class="data-value" id="dash-speed">—</div>
+        <div id="dashboard">
+            <div class="dash-header" onclick="document.getElementById('dashboard').classList.toggle('collapsed')">
+                <span class="vessel-icon">⛵</span>
+                <div>
+                    <div class="vessel-name">Exodus</div>
+                    <div class="vessel-sub">Live Tracker Dashboard</div>
                 </div>
-                <div class="data-row">
-                    <div class="data-label">🧭 Course</div>
-                    <div class="data-value" id="dash-course">—</div>
+                <div class="dash-collapse-btn">
+                    <div class="status-dot" id="status-dot"></div>
+                    <i class="dash-chevron">▲</i>
                 </div>
             </div>
-
-            <div class="data-grid">
+            
+            <div class="dash-body">
                 <div class="data-row">
-                    <div class="data-label">⬆️ Elevation</div>
-                    <div class="data-value" id="dash-elevation">—</div>
+                    <div class="data-label">📍 Coordinates</div>
+                    <div class="data-value accent" id="dash-coords">—</div>
                 </div>
-                <div class="data-row">
-                    <div class="data-label">📡 GPS</div>
-                    <div class="data-value green" id="dash-gps">—</div>
-                </div>
-            </div>
 
-            <div class="data-row">
-                <div class="data-label">🕒 Last Update</div>
-                <div class="data-value" id="dash-updated">—</div>
+                <div class="data-grid">
+                    <div class="data-row">
+                        <div class="data-label">⚡ Speed</div>
+                        <div class="data-value" id="dash-speed">—</div>
+                    </div>
+                    <div class="data-row">
+                        <div class="data-label">🧭 Course</div>
+                        <div class="data-value" id="dash-course">—</div>
+                    </div>
+                </div>
+
+                <div class="data-grid">
+                    <div class="data-row">
+                        <div class="data-label">⬆️ Elevation</div>
+                        <div class="data-value" id="dash-elevation">—</div>
+                    </div>
+                    <div class="data-row">
+                        <div class="data-label">📡 GPS</div>
+                        <div class="data-value green" id="dash-gps">—</div>
+                    </div>
+                </div>
+
+                <div class="data-row">
+                    <div class="data-label">🕒 Last Update</div>
+                    <div class="data-value" id="dash-updated">—</div>
+                </div>
             </div>
         </div>
+
+        <div id="weather-dashboard">
+            <div class="dash-header">
+                <span class="vessel-icon" id="weather-icon">☁️</span>
+                <div>
+                    <div class="vessel-name" id="weather-label">Exodus Weather</div>
+                    <div class="vessel-sub">Live Conditions</div>
+                </div>
+            </div>
+            <div class="weather-grid">
+                <div class="data-row">
+                    <div class="data-label">💨 Wind</div>
+                    <div class="data-value accent" id="wx-wind">—</div>
+                </div>
+                <div class="data-row">
+                    <div class="data-label">🌡️ Temp</div>
+                    <div class="data-value" id="wx-temp">—</div>
+                </div>
+                <div class="data-row">
+                    <div class="data-label">🌊 Waves</div>
+                    <div class="data-value" id="wx-wave">—</div>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <script>
@@ -180,6 +218,88 @@
 
         windyInit(options, windyAPI => {
             const { map } = windyAPI;
+
+            // --- NATIVE WIDGET INTEGRATION ---
+            const dashEl = document.getElementById('dash-container');
+            if (dashEl) {
+                L.DomEvent.disableClickPropagation(dashEl);
+                L.DomEvent.disableScrollPropagation(dashEl);
+            }
+            // ----------------------------------
+
+            // --- WEATHER CONFIGURATION ---
+            // Set to true to allow users to click anywhere on the map to check weather.
+            const ENABLE_CUSTOM_PINS = true; 
+            
+            let customPinMarker = null;
+            let isViewingCustomPin = false;
+
+            function fetchLocalWeather(lat, lon, isBoat = true) {
+                // URL 1: Standard Weather (Wind, Temp) - falls back to GFS if ECMWF is delayed
+                const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,wind_speed_10m&wind_speed_unit=kn`;
+                
+                // URL 2: Marine Data (Waves)
+                const marineUrl = `https://marine-api.open-meteo.com/v1/marine?latitude=${lat}&longitude=${lon}&current=wave_height`;
+
+                // Fetch both at the same time safely
+                Promise.all([
+                    fetch(weatherUrl).then(res => res.ok ? res.json() : null).catch(() => null),
+                    fetch(marineUrl).then(res => res.ok ? res.json() : null).catch(() => null)
+                ]).then(([weatherData, marineData]) => {
+                    
+                    // 1. Process Weather Data
+                    if (weatherData && weatherData.current) {
+                        const wind = weatherData.current.wind_speed_10m;
+                        const temp = weatherData.current.temperature_2m;
+                        document.getElementById('wx-wind').textContent = wind !== null ? `${wind.toFixed(1)} kn` : '— kn';
+                        document.getElementById('wx-temp').textContent = temp !== null ? `${temp.toFixed(1)} °C` : '— °C';
+                    }
+
+                    // 2. Process Marine Data
+                    if (marineData && marineData.current) {
+                        const waves = marineData.current.wave_height;
+                        // Wave height is returned in meters
+                        document.getElementById('wx-wave').textContent = waves !== null ? `${waves.toFixed(1)} m` : '— m';
+                    } else {
+                        // Failsafe: If clicked on land, marine API returns nothing. Show dash.
+                        document.getElementById('wx-wave').textContent = '— m';
+                    }
+                    
+                    // 3. Update UI Styling
+                    if (isBoat) {
+                        document.getElementById('weather-label').textContent = "⛵Exodus Weather";
+                        document.getElementById('weather-label').style.color = "var(--text-primary)";
+                        document.getElementById('weather-icon').textContent = "☁️";
+                    } else {
+                        document.getElementById('weather-label').textContent = "Pinned Location";
+                        document.getElementById('weather-label').style.color = "var(--warning)";
+                        document.getElementById('weather-icon').textContent = "📍";
+                    }
+                });
+            }
+
+            // Map Click Listener (The Pin-Drop Feature)
+            if (ENABLE_CUSTOM_PINS) {
+                map.on('click', function(e) {
+                    isViewingCustomPin = true;
+                    
+                    if (customPinMarker) map.removeLayer(customPinMarker);
+                    
+                    // Drop a temporary pin
+                    customPinMarker = L.marker([e.latlng.lat, e.latlng.lng]).addTo(map);
+                    
+                    // Fetch weather for the clicked location
+                    fetchLocalWeather(e.latlng.lat, e.latlng.lng, false);
+                    
+                    // Clicking the pin removes it and resets weather to the boat
+                    customPinMarker.on('click', function() {
+                        map.removeLayer(customPinMarker);
+                        isViewingCustomPin = false;
+                        fetchAndUpdateMap(); // Immediately reset to boat data
+                    });
+                });
+            }
+            // -----------------------------
 
             let currentTrackLine = null;
             let currentMarker = null;
@@ -244,6 +364,11 @@
                             
                             document.getElementById('dash-coords').textContent = `${latestPoint.lat.toFixed(4)}°N, ${Math.abs(latestPoint.lon).toFixed(4)}°${latestPoint.lon < 0 ? 'W' : 'E'}`;
                             
+                            // Update boat weather (only if user hasn't dropped a custom pin)
+                            if (!isViewingCustomPin) {
+                                fetchLocalWeather(latestPoint.lat, latestPoint.lon, true);
+                            }
+
                             // Parse pre-formatted Python speed string without redundant math conversions
                             let rawSpeed = latestPoint.speed || '0.0 kn (0.0 km/h)';
                             let speedParts = rawSpeed.split(' (');

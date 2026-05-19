@@ -352,13 +352,11 @@
                                     opacity: 1.0,
                                     smoothFactor: 1
                                 }).addTo(map);
-
-                                if (isFirstLoad) {
-                                    map.fitBounds(currentTrackLine.getBounds(), { maxZoom: 12, padding: [50, 50] });
-                                    isFirstLoad = false;
-                                }
-                            } else if (isFirstLoad) {
-                                map.setView(coordinates[0], 10);
+                            }
+                            
+                            // On the first load, snap the camera directly to the boat's current location
+                            if (isFirstLoad) {
+                                map.setView([latestPoint.lat, latestPoint.lon], 5);
                                 isFirstLoad = false;
                             }
                             
